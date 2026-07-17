@@ -26,7 +26,7 @@ jobs:
         run: uvx --with tox-uv-bare tox -e ${{ matrix.environment }}
         env:
           TOX_CONSTRAINTS_FILE: https://raw.githubusercontent.com/${{ github.repository_owner }}/requirements/${{ github.base_ref || github.ref_name }}/upper-constraints.txt
-          TOX_OVERRIDE: "testenv.install_command=uv pip install {opts} {packages};testenv.base_python=3.13"
+          TOX_OVERRIDE: "tox.requires+=tox-uv-bare;testenv.install_command=uv pip install {opts} {packages};testenv.base_python=3.13"
 
       - name: Create test results directory
         if: ${{ matrix.environment != 'pep8' && !cancelled() }}
