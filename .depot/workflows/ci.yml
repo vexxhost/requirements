@@ -6,6 +6,7 @@ on:
     branches: ["main", "stable/**"]
 
 jobs:
+
   tox:
     runs-on: depot-ubuntu-latest
     strategy:
@@ -17,7 +18,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Run "tox"
-        uses: vexxhost/atmosphere-tools/actions/tox@v1.0.1
+        uses: vexxhost/atmosphere-tools/actions/tox@v1.1.2
         with:
           environment: ${{ matrix.environment }}
           extra-tox-override: ""
