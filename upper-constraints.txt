@@ -369,7 +369,7 @@ tooz===6.3.0
 idna===3.10
 yamlloader===1.5.1
 protobuf===5.29.3
-sushy===5.5.1
+sushy===5.5.1+a8e.0.3
 sushy-oem-idrac===5.0.0+a8e.5.1
 python-neutronclient===11.4.0
 types-setuptools===75.8.0.20250210
