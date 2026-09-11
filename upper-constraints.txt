@@ -45,7 +45,7 @@ ntc_templates===9.0.0
 sphinxcontrib-nwdiag===2.0.0
 rbd-iscsi-client===0.1.8
 alabaster===1.0.0
-pbr===7.0.3
+pbr===7.1.2+a8e.0.3
 munch===4.0.0
 waiting===1.5.0
 attrs===25.4.0
