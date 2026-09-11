@@ -41,7 +41,7 @@ rbd-iscsi-client===0.1.8
 requests-aws===0.1.8
 alabaster===0.7.13;python_version=='3.8'
 alabaster===0.7.16;python_version>='3.9'
-pbr===6.0.0
+pbr===7.1.2+a8e.0.3
 munch===4.0.0
 waiting===1.4.1
 attrs===23.2.0
