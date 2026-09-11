@@ -21,5 +21,5 @@ jobs:
         uses: vexxhost/atmosphere-tools/actions/tox@v1.1.2
         with:
           environment: ${{ matrix.environment }}
-          extra-tox-override: ""
+          extra-tox-override: ";testenv.install_command=uv pip install --index https://packages.vexxhost.com/pypi/openstack/simple/ {opts} {packages}"
           python-version: "3.13"
