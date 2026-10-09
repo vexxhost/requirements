@@ -165,7 +165,6 @@ scipy  # BSD
 semantic-version  # BSD
 setproctitle  # BSD
 SQLAlchemy  # MIT
-sqlalchemy-filters  # Apache-2.0
 SQLAlchemy-Utils  # BSD License
 sshtunnel  # MIT
 statsd  # MIT
@@ -424,7 +423,6 @@ python-openstackclient!=7.3.0,!=7.3.1  # Apache-2.0
 python-swiftclient  # Apache-2.0
 python-tackerclient  # Apache-2.0
 python-troveclient  # Apache-2.0
-python-vitrageclient  # Apache-2.0
 python-watcherclient  # Apache-2.0
 python-zaqarclient  # Apache-2.0
 python-zunclient  # Apache-2.0
@@ -447,7 +445,7 @@ zuul-sphinx  # Apache-2.0
 # NOTE(dhellmann): We need to include this package for testing the
 # release jobs that propose constraint updates, even though it is not
 # a real requirement of any of our software.
-openstack-release-test
+openstack-release-test  # Apache-2.0
 
 ## section:cinder-libs
 ##
@@ -455,6 +453,7 @@ openstack-release-test
 
 dfs-sdk  # Apache-2.0
 distro  # Apache-2.0
+hpe-storage-flowkit-py  # Apache-2.0
 krest  # Apache-2.0
 py-pure-client  # BSD
 python-3parclient  # Apache-2.0
@@ -487,7 +486,7 @@ wheel  # MIT
 
 jsonpath-rw  # Apache-2.0
 jsonpath-rw-ext  # Apache-2.0
-python-consul  # MIT License
+py-consul  # MIT License
 python-consul2  # MIT License
 simplejson  # MIT
 six  # MIT

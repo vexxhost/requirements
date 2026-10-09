@@ -18,31 +18,25 @@ import collections
 import re
 import sys
 
-from packaging import markers
-
 from openstack_requirements.project import Project
 from openstack_requirements import requirement
 
-MIN_PY_VERSION = '3.5'
 PY3_GLOBAL_SPECIFIER_RE = re.compile(
     r'python_version(==|>=|>)[\'"]3\.\d+[\'"]'
 )
 PY3_LOCAL_SPECIFIER_RE = re.compile(
     r'python_version(==|>=|>|<=|<)[\'"]3\.\d+[\'"]'
 )
+WINDOWS_SPECIFIER_RE = re.compile(r'sys_platform!=[\'"]win32[\'"]')
 
 
 class RequirementsList:
     def __init__(self, name: str, project: Project) -> None:
         self.name = name
         self.reqs_by_file: dict[str, dict[str, set[str]]] = {}
+        self.optional_reqs_by_file: dict[str, dict[str, set[str]]] = {}
         self.project = project
         self.failed = False
-
-    @property
-    def reqs(self) -> dict[str, set[str]]:
-        """Flattens the list of per-file reqs."""
-        return {k: v for d in self.reqs_by_file.values() for k, v in d.items()}
 
     def extract_reqs(
         self, content: list[str], strict: bool
@@ -112,9 +106,17 @@ class RequirementsList:
             print(f"Processing {fname} (extras)")
             for name, content in extras.items():
                 print(f"  Processing {name!r} extra")
-                self.reqs_by_file[f'{fname} ({name!r} extra)'] = (
+                self.optional_reqs_by_file[f'{fname} ({name!r} extra)'] = (
                     self.extract_reqs(content, strict)
                 )
+
+        for fname, groups in self.project['dependency_groups'].items():
+            print(f"Processing {fname} (dependency-groups)")
+            for name, content in groups.items():
+                print(f"  Processing {name!r} dependency group")
+                self.optional_reqs_by_file[
+                    f'{fname} ({name!r} dependency group)'
+                ] = self.extract_reqs(content, strict)
 
 
 def _get_exclusions(req):
@@ -128,7 +130,6 @@ def _get_exclusions(req):
 def _is_requirement_in_global_reqs(
     local_req,
     global_reqs,
-    backports,
 ):
     req_exclusions = _get_exclusions(local_req)
     for global_req in global_reqs:
@@ -137,14 +138,18 @@ def _is_requirement_in_global_reqs(
             local_req_val = getattr(local_req, aname)
             global_req_val = getattr(global_req, aname)
             if local_req_val != global_req_val:
-                # if a python 3 version is not specified in only one of
-                # global requirements or local requirements, allow it since
-                # python 3-only is okay
                 if matching and aname == 'markers':
+                    # if a Python version marker is specified globally but not
+                    # locally, allow it since this is unnecessary boilerplate
+                    # for projects to carry
                     if not local_req_val and PY3_GLOBAL_SPECIFIER_RE.match(
                         global_req_val
                     ):
                         continue
+
+                    # if a Python version marker is specified locally but not
+                    # globally, allow it since projects might only need the
+                    # package on specific Python versions
                     if (
                         not global_req_val
                         and local_req_val
@@ -152,34 +157,21 @@ def _is_requirement_in_global_reqs(
                     ):
                         continue
 
-                # likewise, if a package is one of the backport packages then
-                # we're okay with a potential marker (e.g. if a package
-                # requires a feature that is only available in a newer Python
-                # library, while other packages are happy without this feature
-                if (
-                    matching
-                    and aname == 'markers'
-                    and local_req.package in backports
-                ):
-                    if re.match(
-                        r'python_version(==|<=|<)[\'"]3\.\d+[\'"]',
-                        local_req_val,
+                    # OpenStack no longer supports Windows. If a package wants
+                    # to drop their sys_platform marker, let them.
+                    if not local_req_val and WINDOWS_SPECIFIER_RE.match(
+                        global_req_val
                     ):
-                        print(
-                            'Ignoring backport package with python_version '
-                            'marker'
-                        )
                         continue
 
                 print(
-                    f'WARNING: possible mismatch found for package "{local_req.package}"'
-                )  # noqa: E501
-                print(f'   Attribute "{aname}" does not match')
-                print(
-                    f'   "{local_req_val}" does not match "{global_req_val}"'
-                )  # noqa: E501
-                print(f'   {local_req}')
-                print(f'   {global_req}')
+                    f'WARNING: possible mismatch found for package '
+                    f'{local_req.package!r}\n'
+                    f'   Attribute "{aname}" does not match\n'
+                    f'   "{local_req_val}" does not match "{global_req_val}"\n'
+                    f'   {local_req}\n'
+                    f'   {global_req}'
+                )
                 matching = False
         if not matching:
             continue
@@ -194,8 +186,7 @@ def _is_requirement_in_global_reqs(
             difference = req_exclusions - global_exclusions
             print(
                 f"ERROR: Requirement for package {local_req.package} "
-                f"excludes a version not excluded in the "
-                f"global list.\n"
+                f"excludes a version not excluded in the global list.\n"
                 f"  Local settings : {list(req_exclusions)}\n"
                 f"  Global settings: {list(global_exclusions)}\n"
                 f"  Unexpected     : {list(difference)}"
@@ -226,29 +217,13 @@ def get_global_reqs(content):
     return global_reqs
 
 
-def _get_python3_reqs(reqs):
-    """Filters out the reqs that are less than our minimum version."""
-    results = []
-    for req in reqs:
-        if not req.markers:
-            results.append(req)
-        else:
-            req_markers = markers.Marker(req.markers)
-            if req_markers.evaluate(
-                {
-                    'python_version': MIN_PY_VERSION,
-                }
-            ):
-                results.append(req)
-    return results
-
-
 def _validate_one(
     name,
     reqs,
     denylist,
     global_reqs,
-    backports,
+    *,
+    is_optional,
 ):
     """Returns True if there is a failure."""
 
@@ -259,6 +234,9 @@ def _validate_one(
         return False
 
     if name not in global_reqs:
+        if is_optional:
+            return False
+
         print(f"ERROR: Requirement '{reqs}' not in openstack/requirements")
         return True
 
@@ -270,11 +248,7 @@ def _validate_one(
         else:
             counts[''] = counts.get('', 0) + 1
 
-        if not _is_requirement_in_global_reqs(
-            req,
-            global_reqs[name],
-            backports,
-        ):
+        if not _is_requirement_in_global_reqs(req, global_reqs[name]):
             return True
 
         # check for minimum being defined
@@ -306,23 +280,29 @@ def validate(
     head_reqs,
     denylist,
     global_reqs,
-    backports,
 ):
     failed = False
     # iterate through the changing entries and see if they match the global
     # equivalents we want enforced
-    for fname, freqs in head_reqs.reqs_by_file.items():
-        print(f"Validating {fname}")
-        for name, reqs in freqs.items():
-            failed = (
-                _validate_one(
-                    name,
-                    reqs,
-                    denylist,
-                    global_reqs,
-                    backports,
+    # note that extras and dependency groups are project-specific and may not
+    # be present in global-requirements, so we only note their absence rather
+    # than failing if so
+    for reqs_by_file, is_optional in (
+        (head_reqs.reqs_by_file, False),
+        (head_reqs.optional_reqs_by_file, True),
+    ):
+        for fname, freqs in reqs_by_file.items():
+            print(f"Validating {fname}")
+            for name, reqs in freqs.items():
+                failed = (
+                    _validate_one(
+                        name,
+                        reqs,
+                        denylist,
+                        global_reqs,
+                        is_optional=is_optional,
+                    )
+                    or failed
                 )
-                or failed
-            )
 
     return failed
