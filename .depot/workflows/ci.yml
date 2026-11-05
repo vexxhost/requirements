@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: ["main", "stable/**"]
+
+jobs:
+
+  tox:
+    runs-on: depot-ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [pep8, py3]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Run "tox"
+        uses: vexxhost/atmosphere-tools/actions/tox@v1.1.2
+        with:
+          environment: ${{ matrix.environment }}
+          extra-tox-override: ";testenv.install_command=uv pip install --index https://packages.vexxhost.com/pypi/openstack/simple/ {opts} {packages}"
+          python-version: "3.13"
